@@ -67,3 +67,4 @@ CMD ["python", "app/main.py"]
 
 # docker build -t example1 .
 # docker run -d --rm --name example -v "$(pwd)"/_output:/_output example1
+# Probar docker run -d --rm --name example -v "$(pwd)":/app example1
