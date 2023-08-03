@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import requests
+import json
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from selenium import webdriver
@@ -14,18 +15,20 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.common.action_chains import ActionChains
 
 
-output_path = "_output"
-url = "https://padres.kinderup.es/"
-
+# Load config 
+CONFIG_FILE = "resources/config.json"
+CONFIG = None
+with open(CONFIG_FILE) as f:
+        CONFIG = json.loads(f.read())
 
 # Create _output path
-if not os.path.exists(output_path):
-    os.makedirs(output_path)
+if not os.path.exists(CONFIG.get("output_path")):
+    os.makedirs(CONFIG.get("output_path"))
 
 # Configure Logging
 logging.basicConfig(
     handlers=[RotatingFileHandler(
-                os.path.join(output_path, "picture_downloader.log"), 
+                os.path.join(CONFIG.get("output_path"), "picture_downloader.log"), 
                 maxBytes=20000000, 
                 backupCount=1000)],
     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
@@ -42,7 +45,7 @@ def main() -> None:
 
     # Configure Chrome driver
     options = Options()
-    prefs = {"download.default_directory": output_path}
+    prefs = {"download.default_directory": CONFIG.get("output_path")}
     options.add_experimental_option("prefs",prefs)
     # options.add_argument("--headless")
     # options.add_argument("--no-sandbox")
@@ -50,18 +53,20 @@ def main() -> None:
     driver = webdriver.Chrome(options=options)
     
     # Get into entrypoint URL
+    url = CONFIG.get("kinderup").get("login_url")
     driver.get(url)
     logger.info('Navigating to URL')
 
     # Log into KinderUP
-    username = driver.find_element(By.ID, "user")
-    password = driver.find_element(By.ID, "pass")
+    app_elems = CONFIG.get("kinderup").get("view_elements")
+    username = driver.find_element(By.ID, app_elems.get("login_user"))
+    password = driver.find_element(By.ID, app_elems.get("login_pass"))
     username.send_keys(os.environ['KINDERUP_USER'])
     password.send_keys(os.environ['KINDERUP_PASS'])
-    driver.find_element(By.CLASS_NAME, "login-button").click()
+    driver.find_element(By.CLASS_NAME, app_elems.get("login_button")).click()
 
     # Get into Pictures view
-    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, "flaticon-picture"))).click()
+    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, app_elems.get("pictures_button")))).click()
     logger.info('Navigating to Pictures view')
 
     # Load all thumbnails (Scrolling down and pressing the "+" button)
@@ -70,7 +75,7 @@ def main() -> None:
     while True:
         html.send_keys(Keys.END)
         try:
-            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[alt="Mostrar mas fotos"]'))).click()
+            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, app_elems.get("more_pictures_button")))).click()
             
         except Exception as e:
             # Sometimes it takes a little bit of time to make the "+" button really clickable
@@ -78,7 +83,7 @@ def main() -> None:
                 time.sleep(1)
             else:
                 break
-    download_buttons = driver.find_elements(By.CSS_SELECTOR, '[alt="Descargar"]')
+    download_buttons = driver.find_elements(By.CSS_SELECTOR, app_elems.get("download_picture_button"))
 
     videos_url = []
 
@@ -103,7 +108,7 @@ def main() -> None:
         index = video[0]
         video_url = video[1]
         video_name = f"{index}-{video_url.split('.mp4')[0].split('/')[-1]}.mp4"
-        video_path = os.path.join(output_path, video_name)
+        video_path = os.path.join(CONFIG.get("output_path"), video_name)
         r = requests.get(video_url)
         with open(video_path, 'wb') as f:
             f.write(r.content)
