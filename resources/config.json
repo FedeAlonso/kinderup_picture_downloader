@@ -1,5 +1,5 @@
 {    
-    "output_path":"_output",
+    "output_path":"/home/fealonso/repos/kinderup_picture_downloader/_output",
     "kinderup":{
         "login_url": "https://padres.kinderup.es/",
         "view_elements": {

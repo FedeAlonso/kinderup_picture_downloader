@@ -24,11 +24,14 @@ with open(CONFIG_FILE) as f:
 # Create _output path
 if not os.path.exists(CONFIG.get("output_path")):
     os.makedirs(CONFIG.get("output_path"))
+# Create an specific folder for this execution
+execution_output_folder = os.path.join(os.getcwd(),CONFIG.get("output_path"), datetime.utcnow().strftime('%Y%m%d%H%M%S')) 
+os.makedirs(execution_output_folder)
 
 # Configure Logging
 logging.basicConfig(
     handlers=[RotatingFileHandler(
-                os.path.join(CONFIG.get("output_path"), "picture_downloader.log"), 
+                os.path.join(execution_output_folder, "kinderup_picture_downloader.log"), 
                 maxBytes=20000000, 
                 backupCount=1000)],
     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
@@ -45,7 +48,7 @@ def main() -> None:
 
     # Configure Chrome driver
     options = Options()
-    prefs = {"download.default_directory": CONFIG.get("output_path")}
+    prefs = {"download.default_directory": execution_output_folder}
     options.add_experimental_option("prefs",prefs)
     # options.add_argument("--headless")
     # options.add_argument("--no-sandbox")
@@ -56,6 +59,7 @@ def main() -> None:
     url = CONFIG.get("kinderup").get("login_url")
     driver.get(url)
     logger.info('Navigating to URL')
+
 
     # Log into KinderUP
     app_elems = CONFIG.get("kinderup").get("view_elements")
@@ -70,7 +74,7 @@ def main() -> None:
     logger.info('Navigating to Pictures view')
 
     # Load all thumbnails (Scrolling down and pressing the "+" button)
-    logger.info('Saving all downlodeable elements')
+    logger.info('Saving all download buttons')
     html = driver.find_element(By.TAG_NAME, 'html')
     while True:
         html.send_keys(Keys.END)
@@ -101,6 +105,19 @@ def main() -> None:
             videos_url.append([i, video_url])
             logger.info(f'Element {i} is a video. URL: {video_url}')
             time.sleep(3)
+        
+        # Add the index to the picture name
+        else:
+            files = os.listdir(execution_output_folder)
+            # Unfinished dowload files starts with '.com.google.' or ends with '.crdownload'
+            while len([x for x in files if x.startswith('.com.google.') or x.endswith('.crdownload')]) > 0:
+                time.sleep(0.5)
+                files = os.listdir(execution_output_folder)
+            # Add the index to the picture file
+            for f in [x for x in files if x.startswith('picture')]:
+                old_file = os.path.join(execution_output_folder, f)
+                new_file = os.path.join(execution_output_folder, f'{i}-{f}')
+                os.rename(old_file, new_file)
 
 
     # Download videos
@@ -108,7 +125,7 @@ def main() -> None:
         index = video[0]
         video_url = video[1]
         video_name = f"{index}-{video_url.split('.mp4')[0].split('/')[-1]}.mp4"
-        video_path = os.path.join(CONFIG.get("output_path"), video_name)
+        video_path = os.path.join(execution_output_folder, video_name)
         r = requests.get(video_url)
         with open(video_path, 'wb') as f:
             f.write(r.content)
