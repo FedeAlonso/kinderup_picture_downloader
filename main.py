@@ -50,8 +50,8 @@ def main() -> None:
     options = Options()
     prefs = {"download.default_directory": execution_output_folder}
     options.add_experimental_option("prefs",prefs)
-    # options.add_argument("--headless")
-    # options.add_argument("--no-sandbox")
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1920,1080")
     driver = webdriver.Chrome(options=options)
     
@@ -130,10 +130,6 @@ def main() -> None:
         with open(video_path, 'wb') as f:
             f.write(r.content)
         logging.info(f'Video {index} Downloaded. Saved as: {video_path}')
-
-    # screenshot_filename = f"_output/{datetime.utcnow().strftime('%Y%m%d%H%M%S.%f')[:-3]}-screenshot.png"
-
-    # driver.save_screenshot(screenshot_filename)
 
 
 if __name__ == "__main__":
