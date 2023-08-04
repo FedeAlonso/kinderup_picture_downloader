@@ -16,9 +16,10 @@ COPY requirements.txt /requirements.txt
 RUN pip install --upgrade --no-cache-dir -r /requirements.txt
 RUN rm /requirements.txt # remove requirements file from container.
 
-COPY main.py /app/main.py
+COPY resources /resources
+COPY main.py /main.py
 
-CMD ["python", "app/main.py"]
+CMD ["python", "main.py"]
 
 
 
@@ -65,6 +66,6 @@ CMD ["python", "app/main.py"]
 
 
 
-# docker build -t example1 .
-# docker run -d --rm --name example -v "$(pwd)"/_output:/_output example1
-# Probar docker run -d --rm --name example -v "$(pwd)":/app example1
+# docker build -t kinderup_downloader .
+# docker run -d --rm -v "$(pwd)"/_output:/_output kinderup_downloader
+# Probar docker run -d --rm  -v "$(pwd)":/app example1

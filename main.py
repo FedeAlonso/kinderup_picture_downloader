@@ -46,6 +46,8 @@ def main() -> None:
     Download elements from KinderUp's Pictures view 
     """
 
+    start_time = time.time()
+
     # Configure Chrome driver
     options = Options()
     prefs = {"download.default_directory": execution_output_folder}
@@ -130,6 +132,8 @@ def main() -> None:
         with open(video_path, 'wb') as f:
             f.write(r.content)
         logging.info(f'Video {index} Downloaded. Saved as: {video_path}')
+
+    logging.info(f'Download Finished. {i} Elements downloaded. Taken {int(time.time() - start_time)} seconds')
 
 
 if __name__ == "__main__":
