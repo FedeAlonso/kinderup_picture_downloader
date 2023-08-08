@@ -13,7 +13,7 @@ Using Selenium the program will:
 5. Start downloading all pictures and videos, from older to newer, using the saved requests.
 
 All multimedia files are stored inside the a folder in the '_output' directory.
-It can take around 20-30 minutes to download ~ 1300 multimedia elements.
+It can take around 40-60 minutes to download ~ 1300 multimedia elements.
  
 ## Execution:
 ### Docker
