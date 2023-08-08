@@ -5,8 +5,7 @@ import requests
 import json
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -22,10 +21,11 @@ with open(CONFIG_FILE) as f:
         CONFIG = json.loads(f.read())
 
 # Create _output path
-if not os.path.exists(CONFIG.get("output_path")):
-    os.makedirs(CONFIG.get("output_path"))
+output_path = os.path.join(os.getcwd(), CONFIG.get("output_path"))
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
 # Create an specific folder for this execution
-execution_output_folder = os.path.join(os.getcwd(),CONFIG.get("output_path"), datetime.utcnow().strftime('%Y%m%d%H%M%S')) 
+execution_output_folder = os.path.join(output_path, datetime.utcnow().strftime('%Y%m%d%H%M%S')) 
 os.makedirs(execution_output_folder)
 
 # Configure Logging
@@ -46,22 +46,27 @@ def main() -> None:
     Download elements from KinderUp's Pictures view 
     """
 
+    logger.info(f'Start. Output folder: {execution_output_folder}')
+
     start_time = time.time()
 
-    # Configure Chrome driver
-    options = Options()
+    # selenium-wire
+    options = webdriver.ChromeOptions()
     prefs = {"download.default_directory": execution_output_folder}
     options.add_experimental_option("prefs",prefs)
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1920,1080")
-    driver = webdriver.Chrome(options=options)
+
+    driver = webdriver.Chrome(options = options)
+
+    # Filter just the requests with multimedia content, in the Pictures view
+    driver.scopes = ['.*kinderServices/api/v01/schools/.*/classrooms/.*/kids/.*/pictures']
     
     # Get into entrypoint URL
     url = CONFIG.get("kinderup").get("login_url")
     driver.get(url)
-    logger.info('Navigating to URL')
-
+    logger.info(f'Navigating to URL {url}')
 
     # Log into KinderUP
     app_elems = CONFIG.get("kinderup").get("view_elements")
@@ -70,6 +75,7 @@ def main() -> None:
     username.send_keys(os.environ['KINDERUP_USER'])
     password.send_keys(os.environ['KINDERUP_PASS'])
     driver.find_element(By.CLASS_NAME, app_elems.get("login_button")).click()
+    logger.info('Login performed')
 
     # Get into Pictures view
     WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, app_elems.get("pictures_button")))).click()
@@ -78,6 +84,7 @@ def main() -> None:
     # Load all thumbnails (Scrolling down and pressing the "+" button)
     logger.info('Saving all download buttons')
     html = driver.find_element(By.TAG_NAME, 'html')
+    multimedia_elems = []
     while True:
         html.send_keys(Keys.END)
         try:
@@ -89,52 +96,43 @@ def main() -> None:
                 time.sleep(1)
             else:
                 break
-    download_buttons = driver.find_elements(By.CSS_SELECTOR, app_elems.get("download_picture_button"))
+            
+    for request in driver.requests:
+        headers = {
+            "Authorization": request.headers['Authorization'],
+            "Content-Type": "application/json"
+            }
+        req = protected_get(request.url, headers=headers)
+        for multimedia_elem in req.json():
+            multimedia_elems.append(multimedia_elem)
 
-    videos_url = []
-
-    # Download all pictures
-    # Doing it reverse in order to have the older pictures with the lower index
-    for i,v in enumerate(reversed(download_buttons)):
-        action = ActionChains(driver)
-        action.move_to_element(v).click().perform()
-        logger.info(f'Downloading element {i}')
-
-        # A video gets opened instead of get downloaded
-        if driver.current_url != url:
-            video_url = driver.current_url
-            driver.execute_script("window.history.go(-1)")
-            videos_url.append([i, video_url])
-            logger.info(f'Element {i} is a video. URL: {video_url}')
-            time.sleep(3)
-        
-        # Add the index to the picture name
-        else:
-            files = os.listdir(execution_output_folder)
-            # Unfinished dowload files starts with '.com.google.' or ends with '.crdownload'
-            while len([x for x in files if x.startswith('.com.google.') or x.endswith('.crdownload')]) > 0:
-                time.sleep(0.5)
-                files = os.listdir(execution_output_folder)
-            # Add the index to the picture file
-            for f in [x for x in files if x.startswith('picture')]:
-                old_file = os.path.join(execution_output_folder, f)
-                new_file = os.path.join(execution_output_folder, f'{i}-{f}')
-                os.rename(old_file, new_file)
-
-
-    # Download videos
-    for video in videos_url:
-        index = video[0]
-        video_url = video[1]
-        video_name = f"{index}-{video_url.split('.mp4')[0].split('/')[-1]}.mp4"
-        video_path = os.path.join(execution_output_folder, video_name)
-        r = requests.get(video_url)
-        with open(video_path, 'wb') as f:
+    # Download all pictures and videos
+    # Doing it reverse in order to have the older ones with the lower index
+    for i,v in enumerate(reversed(multimedia_elems)):
+        elem_url = v.get('originalPicture')
+        elem_name = f"{i}-{v.get('name')}"
+        elem_path = os.path.join(execution_output_folder, elem_name)
+        r = protected_get(elem_url)
+        with open(elem_path, 'wb') as f:
             f.write(r.content)
-        logging.info(f'Video {index} Downloaded. Saved as: {video_path}')
+        logging.info(f"{v.get('mediaType')} {i} Downloaded. Saved as: {elem_path}")
 
     logging.info(f'Download Finished. {i} Elements downloaded. Taken {int(time.time() - start_time)} seconds')
 
+
+def protected_get(url, headers=None):
+    """
+    As we are making a lot of requests, sometimes we need to wait sometime before continuing
+    """
+    try:
+        req = requests.get(url, headers=headers)
+        logger.info(f'REQUEST URL:{url}   HEADERS:{headers}')        
+    except requests.ConnectionError:
+        time.sleep(1)
+        req = requests.get(url, headers=headers)
+        logger.info(f'Retrying - REQUEST URL:{url}   HEADERS:{headers}')
+    logger.info(f'REQUEST RESPONSE STATUS CODE: {req.status_code} URL:{req.url}')
+    return req
 
 if __name__ == "__main__":
     main()

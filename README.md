@@ -9,11 +9,10 @@ Using Selenium the program will:
 1. Open a Chrome Browser
 2. Navigate to the application login view (It can be configured in the resources/config.json file)
 3. Navigate to the Pictures view
-4. Scroll down until all multimedia content is loaded
-5. Start dowloading all pictures, from older to newer
-6. Download all videos, from older to newer
+4. Scroll down until all multimedia content is loaded. At this point, all request related with multimedia content are saved.
+5. Start downloading all pictures and videos, from older to newer, using the saved requests.
 
-All multimedia files are stored inside the a folder in the _output directory.
+All multimedia files are stored inside the a folder in the '_output' directory.
 It can take around 20-30 minutes to download ~ 1300 multimedia elements.
  
 ## Execution:
@@ -26,7 +25,7 @@ From the root:
 #### Run
 From the root:
 
-	docker run -d --rm -e KINDERUP_USER=<your_username> -e KINDERUP_PASS=<your_password> -v "$(pwd)"/_output:/_output:Z kinderup_downloader
+	docker run -d --rm -e KINDERUP_USER=<your_username> -e KINDERUP_PASS=<your_password> -v "$(pwd)"/app:/app:Z kinderup_downloader
 
 ### Locally
 Follow the steps:
