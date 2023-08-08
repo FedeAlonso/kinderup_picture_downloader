@@ -1,0 +1,13 @@
+{    
+    "output_path":"_output",
+    "kinderup":{
+        "login_url": "https://padres.kinderup.es/",
+        "view_elements": {
+            "login_user": "user",
+            "login_pass": "pass",
+            "login_button": "login-button",
+            "pictures_button": "flaticon-picture",
+            "more_pictures_button": "[alt=\"Mostrar mas fotos\"]"
+        }
+    }
+}
