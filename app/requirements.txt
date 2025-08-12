@@ -1,3 +1,5 @@
-selenium
-selenium-wire
-requests
+selenium>=4.0.0
+selenium-wire>=5.0.0
+requests>=2.25.0
+blinker<1.7
+setuptools

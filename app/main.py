@@ -4,7 +4,7 @@ import logging
 import requests
 import json
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime, UTC
 from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -25,7 +25,7 @@ output_path = os.path.join(os.getcwd(), CONFIG.get("output_path"))
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 # Create an specific folder for this execution
-execution_output_folder = os.path.join(output_path, datetime.utcnow().strftime('%Y%m%d%H%M%S')) 
+execution_output_folder = os.path.join(output_path, datetime.now(UTC).strftime('%Y%m%d%H%M%S')) 
 os.makedirs(execution_output_folder)
 
 # Configure Logging
@@ -103,8 +103,19 @@ def main() -> None:
             "Content-Type": "application/json"
             }
         req = protected_get(request.url, headers=headers)
-        for multimedia_elem in req.json():
-            multimedia_elems.append(multimedia_elem)
+        
+        # Check if response is JSON and handle errors gracefully
+        try:
+            if req.headers.get('content-type', '').startswith('application/json'):
+                response_data = req.json()
+                if isinstance(response_data, list):
+                    for multimedia_elem in response_data:
+                        multimedia_elems.append(multimedia_elem)
+                else:
+                    multimedia_elems.append(response_data)
+        except (json.JSONDecodeError, requests.exceptions.JSONDecodeError) as e:
+            logger.warning(f'Failed to parse JSON from {request.url}: {e}')
+            continue
 
     # Download all pictures and videos
     # Doing it reverse in order to have the older ones with the lower index
